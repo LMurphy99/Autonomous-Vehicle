@@ -32,7 +32,6 @@
 //#include <arm_const_structs.h>
 #include <arm_common_tables.h>
 //#include <core_cm4.h>
-
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -68,9 +67,9 @@ struct skittle{
 #define EDGE_THRESHOLD	512
 #define NUM_EDGES	60		// Max number of edges (256) determined by type of "idx" in edge struct.
 #define NUM_EDGE_PAIRS 30
-#define SKITTLE_WIDTH	65 //* 2
-#define POSITIVE_TOLERANCE	7 // * 2
-#define NEGATIVE_TOLERANCE	20 //* 2
+#define SKITTLE_WIDTH	65
+#define POSITIVE_TOLERANCE	7
+#define NEGATIVE_TOLERANCE	20
 
 // RPLIDAR COMMANDS ----------------------------------------------------------
 // Commands without payload and response
@@ -97,7 +96,7 @@ uint8_t flags = 0;
 #define RESERVE5				32
 #define RESERVE6				64
 #define RESERVE7				128
-// ^ may not be efficient.
+
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 /* USER CODE END PD */
 
@@ -149,39 +148,26 @@ void edgeDetect( struct	sample *pObj, uint16_t objLen, int16_t* pDst);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-/* USER CODE END 0 */
-
 /**
   * @brief  The application entry point.
   * @retval int
   */
 int main(void)
 {
-  /* USER CODE BEGIN 1 */
-  /* USER CODE END 1 */
-  
-
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
-
-  /* USER CODE BEGIN Init */
-  /* USER CODE END Init */
-
+  
   /* Configure the system clock */
   SystemClock_Config();
-
-  /* USER CODE BEGIN SysInit */
-  /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART2_UART_Init();
+  
   /* USER CODE BEGIN 2 */
-
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET);	//Enable 100% PWM for RPLIDAR motor.
 
   tx_buffer = RPLIDAR_CMD_STOP << 8 | RPLIDAR_START_FLAG1;	// RPLIDAR "stop" command.
@@ -278,19 +264,19 @@ int main(void)
    }
 
    // Check last and first edge...
-//   if (edges[n-1].sign - edges[0].sign < 0)
-//   {
-//	   edgePairs[m].idx_0 = edges[n-1].idx;	// ... pair edges.
-//	   edgePairs[m].idx_1 = edges[0].idx;
-//
-//	   ang0 = (obj[edgePairs[m].idx_0-1].ang / 64.0) * PI/180;
-//	   ang1 = (obj[edgePairs[m].idx_1].ang / 64.0) * PI/180;
-//
-	 //  edgePairs[m].width = getWidth(obj[edgePairs[m].idx_0-1].dist,
-	//								 obj[edgePairs[m].idx_1].dist,
-	//								 ang1, ang0);	// swap arguments so difference in angles is positive.
-	//   m += 1;
-   //}
+   if (edges[n-1].sign - edges[0].sign < 0)
+   {
+	   edgePairs[m].idx_0 = edges[n-1].idx;	// ... pair edges.
+	   edgePairs[m].idx_1 = edges[0].idx;
+
+	   dist0 = (obj[edgePairs[m].idx_0].dist / 2.0);	// Scale angles and distances for cosine rule.
+	   dist1 = (obj[edgePairs[m].idx_1].dist / 2.0);
+	   ang0 = (obj[edgePairs[m].idx_0].ang / 64.0) * PI/180;
+	   ang1 = (obj[edgePairs[m].idx_1].ang / 64.0) * PI/180;
+
+	   edgePairs[m].width = getWidth(dist0, dist1, ang0, ang1);
+	   m++;
+   }
 
 
    //	SKITTLE COORDINATES -------------------------------------------------------------
@@ -299,34 +285,27 @@ int main(void)
    {
 	   if ((SKITTLE_WIDTH - NEGATIVE_TOLERANCE < edgePairs[i].width) && (SKITTLE_WIDTH + POSITIVE_TOLERANCE > edgePairs[i].width))
 	   {
-		   skittles[n].ang = (obj[edgePairs[i].idx_0].ang + obj[edgePairs[i].idx_1].ang)/(2.0*64.0);
+		   ang0 = obj[edgePairs[i].idx_0].ang * PI/(64.0*180.0);
+		   ang1 = obj[edgePairs[i].idx_1].ang * PI/(64.0*180.0);
+
+		   skittles[n].ang = atan2(sin(ang0)+sin(ang1), cos(ang0)+cos(ang1))*180/PI;	// average cartesian coords and convert back to polar.
 		   skittles[n].dist= (obj[edgePairs[i].idx_0].dist + obj[edgePairs[i].idx_1].dist)/(2.0*2.0);
 		   n+=1;
 	   }
    }
-
-   //if (abs(SKITTLE_WIDTH - edgePairs[m].width) < WIDTH_TOLERANCE)
-   //	   {
-   //		   skittles[n].ang = (obj[edgePairs[i].idx_0].ang + obj[edgePairs[i].idx_1-1].ang)/(2*64.0);
-   //		   skittles[n].dist= (obj[edgePairs[i].idx_0].dist + obj[edgePairs[i].idx_1-1].dist)/2.0;
-   //	   }
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while(1){}
     /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-
-  /* USER CODE END 3 */
 }
 
 /**
   * @brief System Clock Configuration
   * @retval None
   */
+// BEGIN CUBEIDE AUTO-GENERATED FUNCTIONS
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -445,8 +424,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
 }
+// END CUBEIDE AUTO-GENERATED FUNCTIONS
 
 /* USER CODE BEGIN 4 */
 void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart)
@@ -462,7 +441,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 }
 
 
-int cmp(const void* a, const void* b)
+int cmp(const void* a, const void* b)	// compare function
 {
 	struct sample *a1 = (struct sample*)a;
 	struct sample *a2 = (struct sample*)b;
@@ -487,7 +466,7 @@ void edgeDetect( struct	sample *pObj, uint16_t objLen, int16_t* pDst)
 
 float32_t getWidth(float32_t d0, float32_t d1, float32_t a0, float32_t a1)
 {
-	return sqrt( (d0*d0)+(d1*d1) - 2*d0*d1*cos(a1-a0 + (2*PI)) );
+	return sqrt( (d0*d0)+(d1*d1) - 2*d0*d1*cos(a1-a0 + (2*PI)) );	// cosine rule
 }
 /* USER CODE END 4 */
 
